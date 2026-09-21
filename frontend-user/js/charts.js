@@ -1,5 +1,7 @@
 /* ========================================
    图表组件
+   - 初始化与数据更新分离，刷新时复用实例增量更新
+   - 容器尺寸变化时通过 resize 自适应，避免图形被压变形
    ======================================== */
 
 class ChartManager {
@@ -7,10 +9,50 @@ class ChartManager {
         this.charts = {};
     }
 
+    // ECharts 是否可用（CDN 加载失败时降级，不影响其他模块）
+    isAvailable() {
+        if (typeof echarts === 'undefined') {
+            console.warn('⚠️ ECharts 未加载，图表功能暂不可用');
+            return false;
+        }
+        return true;
+    }
+
+    // 由快照数据构建漏斗图 series data
+    buildFunnelSeriesData(funnelData) {
+        return funnelData.map(item => ({
+            value: item.value,
+            name: item.name,
+            itemStyle: { color: item.color }
+        }));
+    }
+
+    // 由快照数据构建雷达图 series data
+    buildRadarSeriesData(radarData) {
+        return radarData.series.map(s => ({
+            value: s.value,
+            name: s.name,
+            symbol: 'circle',
+            symbolSize: 8,
+            lineStyle: {
+                color: s.color,
+                width: 2,
+                shadowBlur: 10,
+                shadowColor: s.color
+            },
+            areaStyle: { color: s.areaColor },
+            itemStyle: {
+                color: s.color,
+                borderColor: '#fff',
+                borderWidth: 2
+            }
+        }));
+    }
+
     // 初始化漏斗图
-    initFunnelChart(containerId) {
+    initFunnelChart(containerId, snapshot = window.dataStore.getSnapshot()) {
         const container = document.getElementById(containerId);
-        if (!container) return;
+        if (!container || !this.isAvailable()) return null;
 
         const chart = echarts.init(container);
         this.charts.funnel = chart;
@@ -62,16 +104,12 @@ class ChartManager {
                         shadowColor: 'rgba(168, 85, 247, 0.5)'
                     }
                 },
-                data: funnelData.map(item => ({
-                    value: item.value,
-                    name: item.name,
-                    itemStyle: { color: item.color }
-                }))
+                data: this.buildFunnelSeriesData(snapshot.funnel)
             }]
         };
 
         chart.setOption(option);
-        
+
         // 点击事件
         chart.on('click', (params) => {
             window.toast.info('漏斗分析', `${params.name}: 转化率 ${params.value}%`);
@@ -81,9 +119,9 @@ class ChartManager {
     }
 
     // 初始化雷达图
-    initRadarChart(containerId) {
+    initRadarChart(containerId, snapshot = window.dataStore.getSnapshot()) {
         const container = document.getElementById(containerId);
-        if (!container) return;
+        if (!container || !this.isAvailable()) return null;
 
         const chart = echarts.init(container);
         this.charts.radar = chart;
@@ -91,7 +129,7 @@ class ChartManager {
         const option = {
             backgroundColor: 'transparent',
             legend: {
-                data: radarData.series.map(s => s.name),
+                data: snapshot.radar.series.map(s => s.name),
                 bottom: 0,
                 textStyle: { color: '#94a3b8', fontSize: 12 },
                 itemWidth: 16,
@@ -107,7 +145,7 @@ class ChartManager {
                 extraCssText: 'backdrop-filter: blur(10px); border-radius: 8px;'
             },
             radar: {
-                indicator: radarData.indicators,
+                indicator: snapshot.radar.indicators,
                 shape: 'polygon',
                 splitNumber: 4,
                 center: ['50%', '48%'],
@@ -136,24 +174,7 @@ class ChartManager {
             },
             series: [{
                 type: 'radar',
-                data: radarData.series.map(s => ({
-                    value: s.value,
-                    name: s.name,
-                    symbol: 'circle',
-                    symbolSize: 8,
-                    lineStyle: {
-                        color: s.color,
-                        width: 2,
-                        shadowBlur: 10,
-                        shadowColor: s.color
-                    },
-                    areaStyle: { color: s.areaColor },
-                    itemStyle: {
-                        color: s.color,
-                        borderColor: '#fff',
-                        borderWidth: 2
-                    }
-                }))
+                data: this.buildRadarSeriesData(snapshot.radar)
             }]
         };
 
@@ -167,6 +188,25 @@ class ChartManager {
         });
 
         return chart;
+    }
+
+    // 用新快照增量更新图表数据（不销毁实例，避免闪烁）
+    updateData(snapshot) {
+        const funnel = this.charts.funnel;
+        if (funnel) {
+            funnel.setOption({
+                series: [{ data: this.buildFunnelSeriesData(snapshot.funnel) }]
+            });
+        }
+
+        const radar = this.charts.radar;
+        if (radar) {
+            radar.setOption({
+                legend: { data: snapshot.radar.series.map(s => s.name) },
+                radar: { indicator: snapshot.radar.indicators },
+                series: [{ data: this.buildRadarSeriesData(snapshot.radar) }]
+            });
+        }
     }
 
     // 响应式调整

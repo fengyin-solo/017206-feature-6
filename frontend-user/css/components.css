@@ -84,10 +84,91 @@
     50% { border-color: transparent; }
 }
 
+/* ========== 刷新控制区 ========== */
+.refresh-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+
+.refresh-btn {
+    padding: 10px 22px;
+    font-size: 14px;
+}
+
+.refresh-btn-icon {
+    display: inline-block;
+    font-size: 16px;
+}
+
+.refresh-btn.is-refreshing {
+    opacity: 0.85;
+    cursor: progress;
+}
+
+.refresh-btn.is-refreshing .refresh-btn-icon {
+    animation: refreshSpin 1s linear infinite;
+}
+
+@keyframes refreshSpin {
+    to { transform: rotate(360deg); }
+}
+
+.refresh-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border-radius: var(--radius-full);
+    background: rgba(20, 20, 35, 0.6);
+    border: 1px solid var(--glass-border);
+    font-size: 13px;
+    color: var(--text-secondary);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: border-color var(--transition-normal);
+}
+
+.refresh-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--neon-green);
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+}
+
+.refresh-status[data-state="refreshing"] {
+    border-color: rgba(6, 182, 212, 0.5);
+}
+
+.refresh-status[data-state="refreshing"] .refresh-status-dot {
+    background: var(--neon-cyan);
+    box-shadow: 0 0 8px rgba(6, 182, 212, 0.8);
+    animation: statusDotPulse 1s ease-in-out infinite;
+}
+
+.refresh-status[data-state="offline"] {
+    border-color: rgba(239, 68, 68, 0.5);
+}
+
+.refresh-status[data-state="offline"] .refresh-status-dot {
+    background: var(--error);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+}
+
+@keyframes statusDotPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+}
+
 /* ========== 统计卡片 ========== */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
     gap: 20px;
     margin-bottom: 40px;
 }
@@ -98,6 +179,7 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
+    min-width: 0;
 }
 
 .stat-card::before {
@@ -184,13 +266,14 @@
 /* ========== 图表区 ========== */
 .charts-section {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
     gap: 24px;
     margin-bottom: 40px;
 }
 
 .chart-card {
     padding: 28px;
+    min-width: 0;
 }
 
 .chart-title {
@@ -217,6 +300,8 @@
 
 .chart-container {
     height: 320px;
+    width: 100%;
+    min-width: 0;
     position: relative;
 }
 
@@ -444,7 +529,7 @@
 
 .quickwins-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
     gap: 24px;
 }
 
@@ -453,6 +538,7 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
+    min-width: 0;
 }
 
 .quickwin-card:hover {
@@ -561,33 +647,43 @@
 }
 
 /* ========== 响应式 ========== */
-@media (max-width: 1200px) {
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    .charts-section {
-        grid-template-columns: 1fr;
-    }
-    .quickwins-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
+/* 网格列数由 auto-fit + minmax 自适应，无需按断点硬切换，
+   卡片与图表在窄屏下保持最小可读宽度，不会被压变形 */
 @media (max-width: 768px) {
     .header-title {
         font-size: 32px;
     }
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
     .stat-value {
         font-size: 30px;
     }
-    .quickwins-grid {
-        grid-template-columns: 1fr;
-    }
     .section-title {
         font-size: 20px;
+    }
+    .chart-card {
+        padding: 20px;
+    }
+    .chart-container {
+        height: 280px;
+    }
+}
+
+@media (max-width: 480px) {
+    .header {
+        padding: 36px 12px 28px;
+    }
+    .header-title {
+        font-size: 26px;
+    }
+    .refresh-bar {
+        flex-direction: column;
+        gap: 12px;
+    }
+    .chart-container {
+        height: 240px;
+    }
+    .stat-card,
+    .quickwin-card {
+        padding: 22px 18px;
     }
 }
 

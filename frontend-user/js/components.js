@@ -1,11 +1,18 @@
 /* ========================================
    UI 组件渲染
+   - 所有渲染方法均从同一份数据快照取数，
+     保证概览卡片、矩阵表格、速赢清单与数据源一致
    ======================================== */
 
 class ComponentRenderer {
     constructor() {
         this.typewriterText = '基于2026年"拉新"战略核心，诊断当前会员体系成熟度，识别关键断层，规划升级路径...';
         this.charIndex = 0;
+    }
+
+    // 当前已提交的数据快照
+    getSnapshot() {
+        return window.dataStore.getSnapshot();
     }
 
     // 打字机效果
@@ -24,11 +31,12 @@ class ComponentRenderer {
     }
 
     // 渲染统计卡片
-    renderStats() {
+    renderStats(snapshot = this.getSnapshot()) {
         const container = document.getElementById('statsGrid');
         if (!container) return;
 
-        container.innerHTML = statsData.map((stat, index) => `
+        const stats = snapshot.stats;
+        container.innerHTML = stats.map((stat, index) => `
             <div class="glass-card stat-card fade-in delay-${index + 1}" data-index="${index}">
                 <span class="stat-icon">${stat.icon}</span>
                 <div class="stat-value">${stat.value}</div>
@@ -41,20 +49,21 @@ class ComponentRenderer {
         container.querySelectorAll('.stat-card').forEach(card => {
             card.addEventListener('click', () => {
                 const index = card.dataset.index;
-                const stat = statsData[index];
+                const stat = stats[index];
                 window.toast.info(stat.label, `当前值: ${stat.value}`);
             });
         });
     }
 
     // 渲染矩阵表格
-    renderMatrix() {
+    renderMatrix(snapshot = this.getSnapshot()) {
         const table = document.getElementById('matrixTable');
         if (!table) return;
 
+        const matrix = snapshot.matrix;
         let html = '<thead><tr><th>运营维度</th>';
-        
-        matrixData.phases.forEach(p => {
+
+        matrix.phases.forEach(p => {
             html += `
                 <th>
                     <div style="font-weight: 700;">${p.name}</div>
@@ -66,7 +75,7 @@ class ComponentRenderer {
         });
         html += '</tr></thead><tbody>';
 
-        matrixData.dimensions.forEach((dim, dimIndex) => {
+        matrix.dimensions.forEach((dim, dimIndex) => {
             html += `<tr class="fade-in delay-${Math.min(dimIndex + 1, 5)}">`;
             html += `
                 <td class="dimension-cell">
@@ -75,8 +84,8 @@ class ComponentRenderer {
                 </td>
             `;
 
-            matrixData.phases.forEach(phase => {
-                const cell = matrixData.cells[dim.key][phase.key];
+            matrix.phases.forEach(phase => {
+                const cell = matrix.cells[dim.key][phase.key];
                 let cellClass = '';
                 let tag = '';
 
@@ -128,10 +137,11 @@ class ComponentRenderer {
     }
 
     // 渲染速赢行动清单
-    renderQuickWins() {
+    renderQuickWins(snapshot = this.getSnapshot()) {
         const grid = document.getElementById('quickwinsGrid');
         if (!grid) return;
 
+        const quickWins = snapshot.quickWins;
         grid.innerHTML = quickWins.map((qw, i) => `
             <div class="glass-card quickwin-card fade-in delay-${i + 1}" data-index="${i}">
                 <div class="quickwin-number">${i + 1}</div>
@@ -174,7 +184,7 @@ class ComponentRenderer {
         if (!container) return;
 
         const colors = ['#a855f7', '#ec4899', '#06b6d4', '#10b981'];
-        
+
         for (let i = 0; i < 30; i++) {
             const particle = document.createElement('div');
             particle.className = 'particle';
@@ -192,8 +202,7 @@ class ComponentRenderer {
         const sidebar = document.getElementById('diagnosticSidebar');
         const toggle = document.getElementById('sidebarToggle');
         const close = document.getElementById('sidebarClose');
-        const body = document.getElementById('sidebarBody');
-        if (!sidebar || !toggle || !close || !body) return;
+        if (!sidebar || !toggle || !close) return;
 
         toggle.addEventListener('click', () => {
             sidebar.classList.add('open');
@@ -215,27 +224,15 @@ class ComponentRenderer {
             }
         });
 
-        this.renderSidebarContent(body);
-
-        body.querySelectorAll('.sidebar-gap-card').forEach((card, i) => {
-            card.addEventListener('click', () => {
-                sidebar.classList.remove('open');
-                toggle.style.opacity = '1';
-                toggle.style.pointerEvents = 'auto';
-                const targets = ['.charts-section', '.matrix-section', '.quickwins-section'];
-                const target = document.querySelector(targets[i] || targets[0]);
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    target.style.transition = 'box-shadow 0.5s ease';
-                    target.style.boxShadow = '0 0 40px rgba(168, 85, 247, 0.5)';
-                    setTimeout(() => { target.style.boxShadow = ''; }, 2000);
-                }
-            });
-        });
+        this.renderSidebar();
     }
 
-    renderSidebarContent(container) {
-        const d = diagnosticSummary;
+    // 渲染诊断摘要侧栏（可随刷新快照重复调用）
+    renderSidebar(snapshot = this.getSnapshot()) {
+        const body = document.getElementById('sidebarBody');
+        if (!body) return;
+
+        const d = snapshot.diagnostic;
         let html = '';
 
         html += '<div class="sidebar-section">';
@@ -291,24 +288,45 @@ class ComponentRenderer {
         });
         html += '</div>';
 
-        container.innerHTML = html;
+        body.innerHTML = html;
 
         requestAnimationFrame(() => {
-            container.querySelectorAll('.sidebar-score-fill').forEach(el => {
+            body.querySelectorAll('.sidebar-score-fill').forEach(el => {
                 const w = el.style.width;
                 el.style.width = '0%';
                 requestAnimationFrame(() => { el.style.width = w; });
             });
         });
+
+        // 断层卡片点击跳转（每次渲染后重新绑定）
+        const sidebar = document.getElementById('diagnosticSidebar');
+        const toggle = document.getElementById('sidebarToggle');
+        body.querySelectorAll('.sidebar-gap-card').forEach((card, i) => {
+            card.addEventListener('click', () => {
+                if (sidebar) sidebar.classList.remove('open');
+                if (toggle) {
+                    toggle.style.opacity = '1';
+                    toggle.style.pointerEvents = 'auto';
+                }
+                const targets = ['.charts-section', '.matrix-section', '.quickwins-section'];
+                const target = document.querySelector(targets[i] || targets[0]);
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    target.style.transition = 'box-shadow 0.5s ease';
+                    target.style.boxShadow = '0 0 40px rgba(168, 85, 247, 0.5)';
+                    setTimeout(() => { target.style.boxShadow = ''; }, 2000);
+                }
+            });
+        });
     }
 
     // 初始化所有组件
-    init() {
+    init(snapshot = this.getSnapshot()) {
         this.createParticles();
         this.startTypewriter();
-        this.renderStats();
-        this.renderMatrix();
-        this.renderQuickWins();
+        this.renderStats(snapshot);
+        this.renderMatrix(snapshot);
+        this.renderQuickWins(snapshot);
         this.initSidebar();
 
         // 显示欢迎提示
