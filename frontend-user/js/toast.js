@@ -105,6 +105,45 @@ class Toast {
         return this.show({ type: 'info', title, message, duration });
     }
 
+    /**
+     * 复用同一条常驻提示（不自动消失），用于刷新状态流转
+     * 刷新中 -> 刷新完成 / 刷新失败 时只更新内容与样式，不堆叠新 toast
+     */
+    sticky(key, type, title, message) {
+        if (!this._stickyToasts) this._stickyToasts = {};
+
+        const toast = this._stickyToasts[key];
+        if (toast && !toast.dataset.dismissed && document.body.contains(toast)) {
+            toast.className = `toast toast-${type} toast-sticky`;
+            const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
+            toast.querySelector('.toast-icon').textContent = icons[type] || 'ℹ';
+            toast.querySelector('.toast-title').textContent = title;
+            const msgEl = toast.querySelector('.toast-message');
+            if (msgEl) msgEl.textContent = message;
+            // 刷新中的转圈动画（spinner 模式）
+            const iconEl = toast.querySelector('.toast-icon');
+            iconEl.classList.toggle('is-spinning', type === 'info' && /刷新中|重新加载/.test(title));
+            return toast;
+        }
+
+        const created = this.show({ type, title, message, duration: 0, closable: false });
+        created.classList.add('toast-sticky');
+        this._stickyToasts[key] = created;
+        const iconEl = created.querySelector('.toast-icon');
+        iconEl.classList.add('is-spinning');
+        return created;
+    }
+
+    // 关闭并移除常驻提示
+    dismissSticky(key, delay = 0) {
+        if (!this._stickyToasts || !this._stickyToasts[key]) return;
+        const toast = this._stickyToasts[key];
+        // 关闭动画期间标记为已关闭，防止状态流中被重新复用
+        toast.dataset.dismissed = '1';
+        setTimeout(() => this.close(toast), delay);
+        delete this._stickyToasts[key];
+    }
+
     // 清除所有 toast
     clearAll() {
         this.toasts.forEach(toast => this.close(toast));

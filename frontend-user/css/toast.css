@@ -213,6 +213,20 @@
     to { width: 0%; }
 }
 
+/* 常驻提示（刷新状态流转）：不显示倒计时进度条，图标可旋转 */
+.toast.toast-sticky .toast-progress {
+    display: none;
+}
+
+.toast-icon.is-spinning {
+    animation: toastIconSpin 1s linear infinite !important;
+}
+
+@keyframes toastIconSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 /* 响应式 */
 @media (max-width: 480px) {
     .toast-container {

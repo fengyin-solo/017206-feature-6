@@ -57,6 +57,17 @@
             <div class="typewriter">
                 <span class="typewriter-text" id="typewriter"></span>
             </div>
+            <div class="refresh-bar">
+                <button class="btn btn-primary refresh-btn" id="refreshBtn" type="button"
+                        aria-label="刷新仪表盘数据" title="从数据源重新加载">
+                    <span class="refresh-btn-icon" aria-hidden="true">⟳</span>
+                    <span class="refresh-btn-label">刷新数据</span>
+                </button>
+                <span class="refresh-status" role="status" aria-live="polite">
+                    <span class="refresh-status-dot" id="refreshStatusDot" data-state="ready"></span>
+                    <span class="refresh-status-text" id="refreshStatusText">准备中…</span>
+                </span>
+            </div>
         </header>
         
         <!-- 统计卡片区域 -->
@@ -112,7 +123,7 @@
         
         <!-- 页脚 -->
         <footer class="footer" style="text-align: center; padding: 40px 20px; color: var(--text-muted); font-size: 13px;">
-            <p>© 2026 佳贝艾特 会员运营诊断系统 | 数据更新时间: 2026-02-05</p>
+            <p>© 2026 佳贝艾特 会员运营诊断系统 | <span id="footerTime">数据更新时间: --</span></p>
         </footer>
         
     </div>

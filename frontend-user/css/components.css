@@ -84,6 +84,98 @@
     50% { border-color: transparent; }
 }
 
+/* ========== 刷新控制条 ========== */
+.refresh-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 22px;
+    flex-wrap: wrap;
+}
+
+.refresh-btn {
+    padding: 10px 22px;
+    font-size: 14px;
+}
+
+.refresh-btn[disabled] {
+    cursor: progress;
+    opacity: 0.85;
+}
+
+.refresh-btn-icon {
+    display: inline-block;
+    font-size: 17px;
+    line-height: 1;
+}
+
+/* 进行中：图标旋转；按钮自身不做缩放，避免抖动 */
+.refresh-btn.is-loading .refresh-btn-icon {
+    animation: refreshSpin 0.9s linear infinite;
+}
+
+@keyframes refreshSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 断开状态：按钮转为警示描边 */
+.refresh-btn.is-offline {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.85), rgba(249, 115, 22, 0.85));
+    box-shadow: 0 0 18px rgba(239, 68, 68, 0.35);
+}
+
+.refresh-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    background: rgba(20, 20, 35, 0.7);
+    border: 1px solid var(--glass-border);
+    font-size: 13px;
+    color: var(--text-secondary);
+    max-width: 100%;
+}
+
+.refresh-status-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--neon-green);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+}
+
+.refresh-status-dot[data-state="ready"] {
+    background: var(--neon-green);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.7);
+}
+
+.refresh-status-dot[data-state="refreshing"] {
+    background: var(--neon-cyan);
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+    animation: statusPulse 1s ease-in-out infinite;
+}
+
+.refresh-status-dot[data-state="offline"] {
+    background: var(--error);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+    animation: statusPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes statusPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.refresh-status-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* ========== 统计卡片 ========== */
 .stats-grid {
     display: grid;
@@ -98,6 +190,8 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
+    /* grid 子项默认 min-width:auto 会撑破窄屏，归零后随轨道收缩不被压变形 */
+    min-width: 0;
 }
 
 .stat-card::before {
@@ -146,7 +240,7 @@
 }
 
 .stat-value {
-    font-size: 38px;
+    font-size: clamp(24px, 4vw, 38px);
     font-weight: 800;
     background: var(--gradient-cyan-green);
     -webkit-background-clip: text;
@@ -154,6 +248,7 @@
     background-clip: text;
     position: relative;
     z-index: 1;
+    overflow-wrap: anywhere;
 }
 
 .stat-label {
@@ -191,6 +286,7 @@
 
 .chart-card {
     padding: 28px;
+    min-width: 0;
 }
 
 .chart-title {
@@ -217,6 +313,8 @@
 
 .chart-container {
     height: 320px;
+    width: 100%;
+    min-width: 0;
     position: relative;
 }
 
@@ -453,6 +551,7 @@
     position: relative;
     overflow: hidden;
     cursor: pointer;
+    min-width: 0;
 }
 
 .quickwin-card:hover {
@@ -481,6 +580,11 @@
     margin-bottom: 18px;
     position: relative;
     z-index: 1;
+    min-width: 0;
+}
+
+.quickwin-header > div:last-child {
+    min-width: 0;
 }
 
 .quickwin-icon {
@@ -494,6 +598,7 @@
     font-size: 28px;
     box-shadow: var(--shadow-glow-purple);
     transition: transform var(--transition-normal);
+    flex-shrink: 0;
 }
 
 .quickwin-card:hover .quickwin-icon {
@@ -503,6 +608,7 @@
 .quickwin-title {
     font-size: 20px;
     font-weight: 700;
+    overflow-wrap: anywhere;
 }
 
 .quickwin-timeline {
@@ -546,10 +652,11 @@
 }
 
 .kpi-value {
-    font-size: 24px;
+    font-size: clamp(18px, 2.6vw, 24px);
     font-weight: 800;
     color: var(--neon-green);
     text-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+    overflow-wrap: anywhere;
 }
 
 .kpi-label {
@@ -574,20 +681,78 @@
 }
 
 @media (max-width: 768px) {
+    .header {
+        padding: 36px 12px 30px;
+    }
     .header-title {
-        font-size: 32px;
+        font-size: clamp(26px, 7vw, 32px);
+        overflow-wrap: anywhere;
+    }
+    .typewriter {
+        font-size: 15px;
+        height: auto;
+        min-height: 48px;
+        padding: 0 8px;
     }
     .stats-grid {
         grid-template-columns: 1fr;
-    }
-    .stat-value {
-        font-size: 30px;
     }
     .quickwins-grid {
         grid-template-columns: 1fr;
     }
     .section-title {
         font-size: 20px;
+    }
+    /* 单列后图表仍需保持合理比例，不被压扁也不顶天高 */
+    .chart-card {
+        padding: 20px 16px;
+    }
+    .chart-container {
+        height: 300px;
+    }
+    /* 矩阵大表：横向滑动浏览，手势惯性，不压缩列宽 */
+    .matrix-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+    }
+    .matrix-table th,
+    .matrix-table td {
+        padding: 14px;
+    }
+    .refresh-bar {
+        gap: 12px;
+    }
+    .refresh-status-text {
+        white-space: normal;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 12px;
+    }
+    .stat-card {
+        padding: 22px 18px;
+    }
+    .chart-container {
+        height: 260px;
+    }
+    .quickwin-card {
+        padding: 22px 18px;
+    }
+    .quickwin-kpi {
+        gap: 10px;
+    }
+    .kpi-item {
+        padding: 10px 8px;
+    }
+    .refresh-btn {
+        width: 100%;
+    }
+    .refresh-status {
+        width: 100%;
+        justify-content: center;
     }
 }
 

@@ -239,3 +239,134 @@ const radarData = {
         }
     ]
 };
+
+/* ========================================
+   数据源层
+   - 页面上的概览卡片 / 矩阵表格 / 速赢清单 / 图表 / 诊断侧栏
+     全部从同一份数据快照(Snapshot)渲染，保证刷新后各模块与数据源严格一致
+   - fetchDashboard() 模拟远程拉取（网络延迟 / 断线 / 超时），
+     接入真实后端时只需替换该方法的实现，调用方无需改动
+   ======================================== */
+
+const REFRESH_TIMEOUT_MS = 6000;
+
+// 基线快照：内置的“上一次成功加载”的数据，断网/超时时界面回退到此状态
+const baselineSnapshot = {
+    source: 'baseline',
+    updatedAt: '2026-02-05 09:00',
+    stats: statsData,
+    matrix: matrixData,
+    quickWins: quickWins,
+    funnel: funnelData,
+    radar: radarData,
+    diagnosticSummary: diagnosticSummary
+};
+
+function deepClone(value) {
+    return JSON.parse(JSON.stringify(value));
+}
+
+function formatDateTime(date) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ` +
+           `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+// 刷新流程的可识别错误：offline(断开) / timeout(超时) / aborted(被取消)
+class RefreshError extends Error {
+    constructor(type, message) {
+        super(message);
+        this.name = 'RefreshError';
+        this.type = type;
+    }
+}
+
+class DashboardDataSource {
+    constructor() {
+        // 演练用：URL 加 ?refresh=offline 模拟断网，?refresh=timeout 模拟超时
+        const mode = new URLSearchParams(window.location.search).get('refresh');
+        this.simulateOffline = mode === 'offline' || mode === 'fail';
+        this.simulateTimeout = mode === 'timeout';
+        if (mode) {
+            console.info(`[dataSource] 已开启刷新故障模拟: ${mode}`);
+        }
+    }
+
+    // 基线快照的深拷贝，调用方可以安全修改
+    baseline() {
+        return deepClone(baselineSnapshot);
+    }
+
+    isOnline() {
+        return navigator.onLine !== false && !this.simulateOffline;
+    }
+
+    // 控制台演练：dashboardDataSource.setFault('offline'|'timeout'|null)
+    setFault(mode) {
+        this.simulateOffline = mode === 'offline' || mode === 'fail';
+        this.simulateTimeout = mode === 'timeout';
+        console.info(`[dataSource] 故障模拟已${mode ? '开启: ' + mode : '关闭'}`);
+    }
+
+    /**
+     * 拉取最新仪表盘数据（单次请求）
+     * @param {{signal?: AbortSignal}} options
+     * @returns {Promise<Object>} 不可变数据快照
+     */
+    fetchDashboard({ signal } = {}) {
+        return new Promise((resolve, reject) => {
+            if (signal && signal.aborted) {
+                reject(new RefreshError('aborted', '刷新已取消'));
+                return;
+            }
+            if (!this.isOnline()) {
+                reject(new RefreshError('offline', '网络连接已断开，无法获取最新数据'));
+                return;
+            }
+
+            // 模拟真实网络往返耗时（0.9s ~ 1.6s）；超时演练时延迟超过超时时限
+            const networkLatency = this.simulateTimeout
+                ? REFRESH_TIMEOUT_MS + 3000
+                : 900 + Math.random() * 700;
+
+            let settled = false;
+            let doneTimer = null;
+            let timeoutTimer = null;
+
+            const cleanup = () => {
+                clearTimeout(doneTimer);
+                clearTimeout(timeoutTimer);
+                if (signal) signal.removeEventListener('abort', onAbort);
+            };
+
+            const onAbort = () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new RefreshError('aborted', '刷新已取消'));
+            };
+
+            doneTimer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                // 每次成功拉取生成独立快照，并打上服务端返回时间
+                const snapshot = deepClone(baselineSnapshot);
+                snapshot.source = 'remote';
+                snapshot.updatedAt = formatDateTime(new Date());
+                resolve(snapshot);
+            }, networkLatency);
+
+            timeoutTimer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(new RefreshError('timeout', '数据请求超时，未收到服务器响应'));
+            }, REFRESH_TIMEOUT_MS);
+
+            if (signal) signal.addEventListener('abort', onAbort);
+        });
+    }
+}
+
+window.dashboardDataSource = new DashboardDataSource();

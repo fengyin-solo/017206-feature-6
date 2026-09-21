@@ -24,11 +24,11 @@ class ComponentRenderer {
     }
 
     // 渲染统计卡片
-    renderStats() {
+    renderStats(stats) {
         const container = document.getElementById('statsGrid');
         if (!container) return;
 
-        container.innerHTML = statsData.map((stat, index) => `
+        container.innerHTML = stats.map((stat, index) => `
             <div class="glass-card stat-card fade-in delay-${index + 1}" data-index="${index}">
                 <span class="stat-icon">${stat.icon}</span>
                 <div class="stat-value">${stat.value}</div>
@@ -41,14 +41,14 @@ class ComponentRenderer {
         container.querySelectorAll('.stat-card').forEach(card => {
             card.addEventListener('click', () => {
                 const index = card.dataset.index;
-                const stat = statsData[index];
+                const stat = stats[index];
                 window.toast.info(stat.label, `当前值: ${stat.value}`);
             });
         });
     }
 
     // 渲染矩阵表格
-    renderMatrix() {
+    renderMatrix(matrixData) {
         const table = document.getElementById('matrixTable');
         if (!table) return;
 
@@ -128,7 +128,7 @@ class ComponentRenderer {
     }
 
     // 渲染速赢行动清单
-    renderQuickWins() {
+    renderQuickWins(quickWins) {
         const grid = document.getElementById('quickwinsGrid');
         if (!grid) return;
 
@@ -188,7 +188,7 @@ class ComponentRenderer {
         }
     }
 
-    initSidebar() {
+    initSidebar(diagnosticSummary) {
         const sidebar = document.getElementById('diagnosticSidebar');
         const toggle = document.getElementById('sidebarToggle');
         const close = document.getElementById('sidebarClose');
@@ -215,7 +215,7 @@ class ComponentRenderer {
             }
         });
 
-        this.renderSidebarContent(body);
+        this.renderSidebarContent(body, diagnosticSummary);
 
         body.querySelectorAll('.sidebar-gap-card').forEach((card, i) => {
             card.addEventListener('click', () => {
@@ -234,8 +234,7 @@ class ComponentRenderer {
         });
     }
 
-    renderSidebarContent(container) {
-        const d = diagnosticSummary;
+    renderSidebarContent(container, d) {
         let html = '';
 
         html += '<div class="sidebar-section">';
@@ -302,14 +301,27 @@ class ComponentRenderer {
         });
     }
 
+    // 用同一份数据快照渲染全部内容模块，保证彼此与数据源一致
+    renderAll(snapshot) {
+        this.currentSnapshot = snapshot;
+        this.renderStats(snapshot.stats);
+        this.renderMatrix(snapshot.matrix);
+        this.renderQuickWins(snapshot.quickWins);
+        this.renderSidebarContent(
+            document.getElementById('sidebarBody'),
+            snapshot.diagnosticSummary
+        );
+    }
+
     // 初始化所有组件
-    init() {
+    init(snapshot) {
+        this.currentSnapshot = snapshot;
         this.createParticles();
         this.startTypewriter();
-        this.renderStats();
-        this.renderMatrix();
-        this.renderQuickWins();
-        this.initSidebar();
+        this.renderStats(snapshot.stats);
+        this.renderMatrix(snapshot.matrix);
+        this.renderQuickWins(snapshot.quickWins);
+        this.initSidebar(snapshot.diagnosticSummary);
 
         // 显示欢迎提示
         setTimeout(() => {
